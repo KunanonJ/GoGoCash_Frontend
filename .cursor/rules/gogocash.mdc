@@ -1,0 +1,148 @@
+---
+description: GoGoCash 1.1 product rules — design system, business logic, and component standards
+globs:
+  - "src/**/*.tsx"
+  - "src/**/*.ts"
+alwaysApply: true
+---
+
+# GoGoCash 1.1 — Product & Design System Rules
+
+## What This Product Does
+
+GoGoCash is a stablecoin cashback platform. Users shop at partner merchants and receive USDT/USDC cashback automatically. The core loop is: Browse Merchant → Activate Deal → Shop → Receive Cashback → Withdraw.
+
+Business context:
+- 220+ partner merchants
+- Target: 500k users
+- Cashback paid in USDT/USDC on BNB Chain, Polygon, Sonic, Celo
+- Two user languages: English (`en`) and Thai (`th`)
+- Primary market: Southeast Asia (Thailand first)
+
+## Design System Source
+
+**Figma:** https://www.figma.com/design/jFDx8MnbCtlCaTQxlhpJIp/GoGoCash-1.1?node-id=2-908
+
+For EVERY screen you implement:
+1. Open Figma, navigate to the exact frame
+2. Use Inspect panel → extract exact padding, font-size, color hex → map to CSS variable below
+3. Export icons as SVG → `public/icons/{name}.svg`
+4. Export images as WebP → `public/images/`
+5. Figma auto-layout → Tailwind `flex` or `grid`
+6. Figma corner radius → `rounded-{n}`
+7. Implement ALL states shown in Figma: default, hover, active, disabled, loading, empty, error
+
+## CSS Variable Tokens
+
+All visual values come from these tokens (defined in `src/app/globals.css`).
+NEVER use hardcoded hex, rgb, or pixel values.
+
+```css
+/* Brand */
+--primary-1       /* Main brand color */
+--primary-2       /* Hover/active */
+--cashback-green  /* Cashback % accent */
+--stablecoin-accent
+
+/* Backgrounds */
+--bg-primary
+--bg-secondary
+--bg-card
+
+/* Text */
+--text-primary
+--text-secondary
+--text-muted
+
+/* Semantic */
+--success
+--error
+--warning
+--info
+
+/* Border */
+--border-default
+--border-focus
+```
+
+## Core Component Rules
+
+### MerchantCard
+- Always show: merchant logo, name, cashback % badge (using `--cashback-green`), "Shop Now" CTA
+- `isNew` prop: show "New" badge in top-right corner
+- `isLoading` prop: show Skeleton layout, never flash empty content
+- Click handler: navigate to `/[locale]/shop/[merchantId]`
+
+### QuestCard
+- Always show: quest title, progress bar (`<progress>` or div with width %), reward amount in USDT, expiry countdown
+- Completed state: green checkmark overlay, "Claim Reward" CTA
+- Expired state: greyed out, non-interactive
+
+### OtpInput
+- 6 digits, auto-advance on input, auto-backspace on delete
+- Resend button: disabled for 60s countdown, then re-enabled
+- **Port logic from `mygogocash/gogocash_app` `src/components/common/OtpInput.tsx` — restyle only**
+
+### BottomSheet
+- Slides up from bottom, 80% viewport height max
+- Backdrop click = dismiss
+- Drag handle at top
+- Trap focus when open (accessibility)
+
+### Skeleton
+- Match exact shape/size of the real content it replaces
+- Use `animate-pulse` (Tailwind)
+- Never show Skeleton for > 10 seconds — show error state if data hasn't loaded
+
+## Screen-Level Rules
+
+### Home Feed
+- Balance pill updates every 30s (TanStack Query `staleTime: 30000`)
+- Banner carousel: auto-advance 5s, pause on user interaction
+- "For You" section: show skeleton then load, never flash empty
+
+### Shop / Merchant Directory
+- Search: debounced 300ms, minimum 2 characters before API call
+- Filter state persisted in URL query params (`?category=food&sort=cashback`)
+- Infinite scroll: load next page when user is 200px from bottom
+
+### Wallet
+- Show USDT and USDC balances separately
+- Pending cashback shown with clock icon, tooltip "Confirming transaction"
+- Withdraw: validate amount >= minimum withdrawal (fetch from `/wallet/limits`)
+- Multi-chain: use env vars for chain IDs and contract addresses
+
+### Auth
+- After login success: redirect to last visited protected page or `/[locale]/` home
+- After register success: show confetti animation, then redirect to home
+- OTP: 6 digits, 60s resend timer
+- Phone: validate with `libphonenumber-js` before submission
+
+## Analytics Events (Must Instrument)
+
+Every user action must fire an analytics event via the analytics components ported from 1.0.
+
+| Event | Trigger |
+|---|---|
+| `merchant_view` | User opens merchant storefront |
+| `deal_activate` | User clicks "Activate Cashback" |
+| `quest_start` | User starts a quest |
+| `quest_complete` | User completes a quest |
+| `withdraw_initiate` | User starts withdrawal |
+| `withdraw_success` | Withdrawal confirmed on-chain |
+| `referral_copy` | User copies referral link |
+| `signup_complete` | Registration flow finished |
+
+## i18n Rules
+
+- Every user-visible string must use `useTranslations()` hook. No hardcoded English/Thai text in components.
+- Translation key format: `featureName.componentName.key` (e.g., `shop.merchantCard.shopNow`)
+- Add key to BOTH `src/messages/en.json` and `src/messages/th.json` in the same commit
+- Date/number formatting: use `next-intl` formatters, not `Intl` directly
+
+## Error Handling
+
+- All API errors caught in TanStack Query `onError` → show `react-hot-toast` notification
+- Critical errors (auth failure, wallet contract error) → full-page error boundary with retry
+- Network offline: show persistent banner "You are offline. Some features may not work."
+- Never show raw error messages to users — show friendly translated strings

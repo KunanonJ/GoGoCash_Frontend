@@ -1,15 +1,86 @@
 ---
-description:
+description: Development workflow and task execution rules for GoGoCash 1.1
 globs:
 alwaysApply: true
 ---
 
-# Workflow rules
+# GoGoCash 1.1 — Workflow Rules
 
-ai generate steps
-- make a feature and comment if is api write swagger comment
-- test
-- refactor
-- imporve
-- write markdown and d2 docs to Google style (in Thai) into ./docs/*
-- test again
+## Task Execution Order
+
+For EVERY task in CURSOR.md, follow this sequence exactly. Do not skip steps.
+
+1. **Read** — Read the relevant section in `CURSOR.md` fully before writing code
+2. **Check 1.0** — Look at the equivalent feature in `mygogocash/gogocash_app` for existing logic to port
+3. **Scaffold** — Create the folder structure and empty files with correct naming
+4. **Implement** — Write the component/feature against the Figma design
+5. **API hook** — Wire up the TanStack Query hook in `src/hooks/` or feature `hooks/`
+6. **States** — Ensure loading, empty, and error states are all handled
+7. **i18n** — Add all user-facing strings to `src/messages/en.json` AND `src/messages/th.json`
+8. **Test** — Write Jest + RTL tests. Run `yarn test` — must pass before moving on
+9. **Lint** — Run `yarn lint`. Zero errors required
+10. **Docs** — Write a `README.md` in the feature folder (Google style, in Thai) using D2 diagrams if there is a flow
+11. **Commit** — Commit with Conventional Commits format (see below)
+
+## Commit Message Format
+
+```
+<type>(<scope>): <short description>
+
+[optional body]
+[optional footer]
+```
+
+Types: `feat`, `fix`, `chore`, `refactor`, `test`, `style`, `docs`, `perf`
+Scope: feature name (e.g., `wallet`, `auth`, `shop`, `quest`)
+
+Examples:
+```
+feat(shop): add merchant storefront with cashback activation CTA
+fix(auth): OTP resend timer not resetting on new request
+chore(i18n): add missing TH translations for wallet screen
+test(otp): add RTL tests for OtpInput 6-digit behavior
+```
+
+## PR Rules
+
+Before opening a PR to `develop`:
+- [ ] `yarn lint` — 0 errors
+- [ ] `yarn test` — all pass
+- [ ] Screenshots of every new screen (all states: default, loading, empty, error)
+- [ ] No `console.log` in code
+- [ ] No hardcoded colors or pixel values
+- [ ] No `.env` secrets committed
+- [ ] All strings in both `en.json` and `th.json`
+- [ ] Feature `README.md` written in Thai
+
+## API Swagger Comments
+
+For every API route handler in `src/app/api/`, add JSDoc Swagger comment:
+
+```typescript
+/**
+ * @swagger
+ * /api/example:
+ *   get:
+ *     summary: Short description
+ *     tags: [FeatureName]
+ *     responses:
+ *       200:
+ *         description: Success
+ */
+```
+
+## Branch Strategy
+
+```
+main        ← production only
+develop     ← integration (all PRs here)
+feature/1.1-design-system
+feature/1.1-auth
+feature/1.1-cashback-engine
+feature/1.1-wallet
+feature/1.1-profile-affiliate
+```
+
+Never commit directly to `main` or `develop`.

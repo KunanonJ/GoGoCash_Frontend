@@ -1,37 +1,72 @@
 ---
-description:
+description: Core Next.js 15 + TypeScript rules for GoGoCash 1.1
 globs:
-alwaysApply: false
+  - "src/**/*.tsx"
+  - "src/**/*.ts"
+alwaysApply: true
 ---
-# NextJS 15 Rules
-## General
-- **Architecture**: App Router, server components default, feature-based structure
-- **TypeScript**: Strict types, explicit interfaces, discriminated unions
-- **Data**: Server components with cached fetch, React Query for client
-- **Styling**: Tailwind CSS, consistent patterns, CSS variables
-- **State**: Context for simple, Redux Toolkit for complex
-- **Performance**: Code splitting, memoize strategically, optimize images
-- **Routing**: File-based, loading/error states, parallel routes
-- **SEO**: Metadata exports, structured data, dynamic generation
-- **Errors**: Try/catch, error boundaries, monitoring
-- **Testing**: Jest, RTL, Cypress for E2E
-- **Docs**: JSDoc, README per directory
-- **Quality**: ESLint, Prettier, pre-commit hooks
-- **Env**: Type-checked variables, feature flags
-- **Security**: Validate inputs, CSRF protection, auth middleware
-- **A11y**: WCAG standards, semantic HTML, keyboard nav
-- **Components**: Focused, typed props, custom hooks
-- **API**: Validation, proper status codes, consistent responses
-- **Patterns**: Forms with validation, modals, infinite scroll
-- **i18n**: Built-in routing, translations, RTL support
-## Spcific Directors
-- **app**: pages app route
-- **app/api**: all api
-- **module**: featues of project have components , data, hooks and usecase
-- **components**: is global components or shared components
-- **Hook**: dictory is ./hooks or modules/{feature name}/hooks
 
-## Follow
-- naming best practice of nodejs, react, nextjs
-- Always verify the accuracy
-- Always write comments and Markdown file
+# GoGoCash 1.1 — Next.js 15 Rules
+
+## Framework
+- App Router ONLY. Never use `pages/` directory.
+- Server Components by default. Use `'use client'` only when the component needs interactivity, browser APIs, or React hooks.
+- i18n routing via `next-intl`. All pages live under `src/app/[locale]/`. Never create routes outside the locale wrapper.
+- Images: always `next/image`, never `<img>`. Set `width`, `height`, or `fill` explicitly.
+- Fonts: use `next/font`. Never import font CSS from external URLs.
+
+## TypeScript
+- Strict mode is ON. No `any`. No `as unknown as X` casts.
+- All component props defined in a co-located `interface.ts` file, exported as `I{ComponentName}Props`.
+- All API response types defined in `src/interfaces/`. Import from there, never inline.
+- Use `type` for unions/intersections. Use `interface` for object shapes and component props.
+
+## Styling
+- **Tailwind CSS ONLY.** No MUI, no Emotion, no styled-components, no inline `style={{}}` except for dynamic values that cannot be expressed in Tailwind.
+- Colors: ALWAYS use CSS variables (`var(--primary-1)`, `var(--cashback-green)`, etc.). Never hardcode hex values.
+- Spacing follows 4px grid. Use Tailwind spacing scale (`p-1`=4px, `p-2`=8px, etc.).
+- Dark mode via `data-theme` attribute on `<html>`. CSS variables override in `[data-theme='dark']`.
+
+## Components
+- One component per file. File name = component name in PascalCase.
+- Every component folder has: `ComponentName.tsx`, `interface.ts`, `index.ts`.
+- Every component must handle: loading state (`<Skeleton />`), empty state (custom UI), error state (message + retry).
+- No component renders `null` for empty — always render a meaningful empty state.
+
+## Data Fetching
+- Server components: use `fetch()` with `next: { revalidate: 60 }` for static-ish data.
+- Client components: use TanStack Query (`@tanstack/react-query`) exclusively. No `useEffect` + `fetch` patterns.
+- All API calls go through `src/lib/apiClient.ts` (Axios with auth interceptor).
+- Cache times: merchant list = 5min, wallet balance = 30s, categories = 10min.
+
+## State Management
+- Global auth state: `src/providers/AuthProvider.tsx` (NextAuth SessionProvider wrapper).
+- Global wallet state: `src/providers/WalletProvider.tsx` (Wagmi WagmiProvider).
+- Feature state: local `useState` or TanStack Query cache. No Redux.
+- Never store server-fetched data in React context — that's TanStack Query's job.
+
+## Routing & Middleware
+- `middleware.ts` handles TWO concerns in this order: (1) next-intl locale detection, (2) NextAuth session guard.
+- Protected routes: `/(page)/*`, `/wallet`, `/profile`, `/history`, `/notification`, `/affiliate`.
+- Public routes: `/auth/*`, `/shop` (browse-only mode).
+
+## Security
+- Never log `session`, `token`, or any credential to `console`.
+- All user inputs validated with `zod` before API calls.
+- `NEXT_PUBLIC_*` vars only for non-sensitive config. Secrets stay server-side.
+
+## Performance
+- Dynamic import for any component > 10kb that is not in the critical render path: `dynamic(() => import('./Component'), { ssr: false })`.
+- Virtualize lists > 50 items using `react-virtual`.
+- Memoize with `useMemo`/`useCallback` ONLY when there is a measurable performance issue. Do not pre-optimize.
+
+## Accessibility
+- Semantic HTML: `<button>` for actions, `<a>` for navigation, `<nav>`, `<main>`, `<section>` correctly.
+- All interactive elements have `aria-label` if no visible text.
+- Keyboard navigable. Focus ring visible.
+
+## Testing
+- Jest + React Testing Library.
+- One `__tests__/Component.test.tsx` per component in `src/components/common/`.
+- Test: renders correctly, handles loading state, handles error state, user interactions fire correct callbacks.
+- Mock all API calls. Never call real network in tests.

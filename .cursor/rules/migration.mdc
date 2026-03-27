@@ -1,0 +1,100 @@
+---
+description: 1.0 to 1.1 migration reference — what to port, what to rebuild, what to skip
+globs:
+alwaysApply: false
+---
+
+# GoGoCash 1.0 → 1.1 Migration Rules
+
+## Source Repo
+
+**GoGoCash 1.0:** https://github.com/mygogocash/gogocash_app
+
+Before implementing any feature in 1.1, check if equivalent logic exists in 1.0.
+Use 1.0 as the **functional specification** — it is what users currently experience.
+
+## Feature Map
+
+| 1.0 Location | 1.1 Location | Action |
+|---|---|---|
+| `src/features/auth/` | `src/features/mobile/login/` + `src/features/mobile/register/` | Reimplement with Tailwind |
+| `src/features/home/` | `src/features/mobile/home/` | Reimplement with new design |
+| `src/features/shop/` | `src/features/mobile/shop/` | Reimplement with new design |
+| `src/features/category/` | Merge into shop filter `BottomSheet` | No separate page in 1.1 |
+| `src/features/quest/` | `src/features/mobile/quest/` (NEW) | Reimplement — quests are NEW in 1.1 |
+| `src/features/wallet/` | `src/app/[locale]/wallet/` | Reimplement, replace Ethers with Wagmi |
+| `src/features/transaction/` | `src/app/[locale]/history/` | Reimplement with new design |
+| `src/features/referral/` | `src/features/mobile/affiliate/` | Reimplement with tier system |
+| `src/features/subscription/` | `src/app/[locale]/(page)/subscription/` | Port logic, restyle |
+| `src/features/profile/` | `src/app/[locale]/profile/` | Reimplement with settings |
+| `src/features/search/` | Merged into shop header search bar | No separate route in 1.1 |
+| `src/components/analytics/` | `src/components/analytics/` | **COPY DIRECTLY — do not rewrite** |
+| `src/components/common/OtpInput.tsx` | `src/components/common/OtpInput/` | **PORT LOGIC, restyle only** |
+| `src/components/common/Button.tsx` | `src/components/common/Button/` | Rebuild with Tailwind variants |
+| `src/components/common/Input.tsx` | `src/components/common/Input/` | Rebuild with Tailwind + zod |
+| `src/i18n/` | `src/i18n/` | **COPY DIRECTLY** |
+| `src/messages/en.json` | `src/messages/en.json` | Copy as base, extend for new features |
+| `src/messages/th.json` | `src/messages/th.json` | Copy as base, extend for new features |
+| `next-intl.config.ts` | `next-intl.config.ts` | **COPY DIRECTLY** |
+
+## Dependency Migration
+
+### Remove from 1.1 (already not present — keep it that way)
+- `@mui/material` — replaced by Tailwind
+- `@emotion/react` — replaced by Tailwind
+- `@emotion/styled` — replaced by Tailwind
+- `@mui/x-data-grid` — replaced by custom table components
+
+### Add to 1.1 (present in 1.0, missing in 1.1 — install first)
+```bash
+yarn add next-intl firebase next-auth @crossmint/client-sdk-react-ui \
+  swiper libphonenumber-js react-hot-toast react-error-boundary lodash
+yarn add wagmi viem    # replaces ethers.js from 1.0
+yarn add zod           # new in 1.1 for input validation
+```
+
+### Web3 Replacement (Ethers.js → Wagmi v2)
+
+| 1.0 Ethers.js pattern | 1.1 Wagmi/Viem equivalent |
+|---|---|
+| `new ethers.BrowserProvider(window.ethereum)` | `useWalletClient()` |
+| `new ethers.Contract(addr, abi, signer)` | `useWriteContract({ address, abi })` |
+| `contract.withdraw(amount)` | `useWriteContract` → `writeContract({ functionName: 'withdraw', args: [amount] })` |
+| `provider.getBalance(address)` | `useBalance({ address })` |
+| `ethers.parseUnits('1.5', 6)` | `parseUnits('1.5', 6)` from `viem` |
+| `ethers.formatUnits(amount, 6)` | `formatUnits(amount, 6)` from `viem` |
+| `signer.getAddress()` | `useAccount()` → `address` |
+
+## What Is NEW in 1.1 (Not in 1.0)
+
+These features have no 1.0 equivalent — build from scratch using Figma:
+
+1. **Quest system UI** — progress bars, streak counter, reward unlock animation
+2. **Affiliate/tier center** — Bronze/Silver/Gold tiers, earnings table
+3. **Saving Plus teaser** — locked UI with waitlist form (placeholder for 1.2)
+4. **Cashback Lending placeholder** — design-visible, non-functional, "2026" badge
+5. **Dark mode** — CSS variable-based theming
+6. **Skeleton loaders** — on all data-fetching screens
+7. **Multi-state components** — every component has loading + empty + error states
+
+## Contracts (Multi-Chain Withdraw)
+
+1.0 uses Ethers.js to call withdraw contracts on 4 chains.
+1.1 replaces with Wagmi but the contract addresses and chain IDs stay the same.
+Source chain config from env vars:
+```
+NEXT_PUBLIC_CHAIN_ID_WITHDRAW_POLYGON
+NEXT_PUBLIC_CHAIN_ID_WITHDRAW_BNB
+NEXT_PUBLIC_CHAIN_ID_WITHDRAW_SONIC
+NEXT_PUBLIC_CHAIN_ID_WITHDRAW_CELO
+NEXT_PUBLIC_CONTRACT_WITHDRAW_ADDRESS_POLYGON
+NEXT_PUBLIC_CONTRACT_WITHDRAW_ADDRESS_BNB
+NEXT_PUBLIC_CONTRACT_WITHDRAW_ADDRESS_SONIC
+NEXT_PUBLIC_CONTRACT_WITHDRAW_ADDRESS_CELO
+```
+
+## Do NOT Port
+
+- Any MUI component (`<Box>`, `<Grid>`, `<DataGrid>`, `<TextField>`, etc.) — rebuild in Tailwind
+- Any Emotion `styled()` usage — rebuild in Tailwind
+- `CrossmintErrorBoundary.tsx` from 1.0 `components/common/` — use `react-error-boundary` directly in 1.1
